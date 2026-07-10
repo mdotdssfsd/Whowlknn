@@ -1,0 +1,362 @@
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local RunService = game:GetService("RunService")
+local UserInputService = game:GetService("UserInputService")
+
+-- Safe UI Parent Detection
+local ScreenGui = Instance.new("ScreenGui")
+ScreenGui.Name = "BentagaComp"
+ScreenGui.ResetOnSpawn = false
+ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+
+local success = pcall(function() ScreenGui.Parent = game:GetService("CoreGui") end)
+if not success then ScreenGui.Parent = LocalPlayer:WaitForChild("PlayerGui") end
+
+-- Global Comp Settings
+local Settings = {
+    ShowHitboxes = true,
+    HitboxSize = 4.0, -- Locked straight to 4 for peak comp performance
+    Range = 30,       
+    AutoKeepFist = false,
+    AutoConnect = false,
+    CurrentColorIndex = 1,
+    CurrentTransIndex = 6 
+}
+
+-- Custom Color and Transparency Tables
+local ColorList = {
+    {Name = "Pink", Color = Color3.fromRGB(240, 30, 180)},
+    {Name = "Blue", Color = Color3.fromRGB(0, 120, 255)},
+    {Name = "Yellow", Color = Color3.fromRGB(255, 220, 0)},
+    {Name = "Clear", Color = nil, IsClear = true},
+    {Name = "Black", Color = Color3.fromRGB(0, 0, 0)},
+    {Name = "White", Color = Color3.fromRGB(255, 255, 255)},
+    {Name = "Red", Color = Color3.fromRGB(255, 40, 40)},
+    {Name = "Green", Color = Color3.fromRGB(40, 255, 40)}
+}
+
+local TransparencyList = {0.0, 0.1, 0.2, 0.3, 0.4, 0.55, 0.6, 0.7, 0.8, 0.9, 1.0}
+local DiscordLink = "https://discord.gg/h8VBzbweZ"
+
+-- --- MOBILE "B" TOGGLE BUTTON ---
+local ToggleBtn = Instance.new("TextButton")
+ToggleBtn.Size = UDim2.new(0, 60, 0, 60)
+ToggleBtn.Position = UDim2.new(0.1, 0, 0.15, 0)
+ToggleBtn.BackgroundColor3 = Color3.fromRGB(240, 30, 180)
+ToggleBtn.Text = "B"
+ToggleBtn.Font = Enum.Font.GothamBold
+ToggleBtn.TextSize = 28
+ToggleBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+ToggleBtn.Parent = ScreenGui
+Instance.new("UICorner", ToggleBtn).CornerRadius = UDim.new(0, 30)
+
+-- Mobile Dragging Logic
+local btnDragging, btnStart, btnPos
+ToggleBtn.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        btnDragging = true; btnStart = input.Position; btnPos = ToggleBtn.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if btnDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - btnStart
+        ToggleBtn.Position = UDim2.new(btnPos.X.Scale, btnPos.X.Offset + delta.X, btnPos.Y.Scale, btnPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then btnDragging = false end
+end)
+
+-- --- MAIN CONTAINER FRAME ---
+local MainFrame = Instance.new("Frame")
+MainFrame.Size = UDim2.new(0, 340, 0, 300)
+MainFrame.Position = UDim2.new(0.5, -170, 0.5, -150)
+MainFrame.BackgroundColor3 = Color3.fromRGB(12, 12, 16)
+MainFrame.Active = true
+MainFrame.Visible = true
+MainFrame.Parent = ScreenGui
+Instance.new("UICorner", MainFrame).CornerRadius = UDim.new(0, 12)
+
+ToggleBtn.MouseButton1Click:Connect(function() MainFrame.Visible = not MainFrame.Visible end)
+
+-- Window Frame Dragging
+local mainDragging, mainStart, mainPos
+MainFrame.InputBegan:Connect(function(input)
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        mainDragging = true; mainStart = input.Position; mainPos = MainFrame.Position
+    end
+end)
+UserInputService.InputChanged:Connect(function(input)
+    if mainDragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+        local delta = input.Position - mainStart
+        MainFrame.Position = UDim2.new(mainPos.X.Scale, mainPos.X.Offset + delta.X, mainPos.Y.Scale, mainPos.Y.Offset + delta.Y)
+    end
+end)
+UserInputService.InputEnded:Connect(function(input)
+    if mainDragging and (input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch) then mainDragging = false end
+end)
+
+-- --- TAB SELECTOR SYSTEM BAR ---
+local TabBar = Instance.new("Frame")
+TabBar.Size = UDim2.new(1, -40, 0, 34)
+TabBar.Position = UDim2.new(0, 20, 0, 15)
+TabBar.BackgroundTransparency = 1
+TabBar.Parent = MainFrame
+
+local HomeTabBtn = Instance.new("TextButton")
+HomeTabBtn.Size = UDim2.new(0, 145, 1, 0)
+HomeTabBtn.BackgroundColor3 = Color3.fromRGB(45, 25, 55)
+HomeTabBtn.Text = "Home"
+HomeTabBtn.Font = Enum.Font.GothamBold
+HomeTabBtn.TextSize = 12
+HomeTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+HomeTabBtn.Parent = TabBar
+Instance.new("UICorner", HomeTabBtn).CornerRadius = UDim.new(0, 6)
+
+local MiscTabBtn = Instance.new("TextButton")
+MiscTabBtn.Size = UDim2.new(0, 145, 1, 0)
+MiscTabBtn.Position = UDim2.new(1, -145, 0, 0)
+MiscTabBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+MiscTabBtn.Text = "Miscellaneous"
+MiscTabBtn.Font = Enum.Font.GothamBold
+MiscTabBtn.TextSize = 12
+MiscTabBtn.TextColor3 = Color3.fromRGB(180, 180, 185)
+MiscTabBtn.Parent = TabBar
+Instance.new("UICorner", MiscTabBtn).CornerRadius = UDim.new(0, 6)
+
+-- --- PAGE CONTAINER DECKS ---
+local HomePage = Instance.new("Frame")
+HomePage.Size = UDim2.new(1, 0, 1, -65)
+HomePage.Position = UDim2.new(0, 0, 0, 65)
+HomePage.BackgroundTransparency = 1
+HomePage.Visible = true
+HomePage.Parent = MainFrame
+
+local MiscPage = Instance.new("ScrollingFrame")
+MiscPage.Size = UDim2.new(1, 0, 1, -65)
+MiscPage.Position = UDim2.new(0, 0, 0, 65)
+MiscPage.BackgroundTransparency = 1
+MiscPage.ScrollBarThickness = 0
+MiscPage.CanvasSize = UDim2.new(0, 0, 0, 275)
+MiscPage.Visible = false
+MiscPage.Parent = MainFrame
+
+HomeTabBtn.MouseButton1Click:Connect(function()
+    HomePage.Visible = true; MiscPage.Visible = false
+    HomeTabBtn.BackgroundColor3 = Color3.fromRGB(45, 25, 55); HomeTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    MiscTabBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 28); MiscTabBtn.TextColor3 = Color3.fromRGB(180, 180, 185)
+end)
+
+MiscTabBtn.MouseButton1Click:Connect(function()
+    HomePage.Visible = false; MiscPage.Visible = true
+    MiscTabBtn.BackgroundColor3 = Color3.fromRGB(45, 25, 55); MiscTabBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    HomeTabBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 28); HomeTabBtn.TextColor3 = Color3.fromRGB(180, 180, 185)
+end)
+
+-- --- 1. HOME TAB PAGE ---
+local CreatorBtn = Instance.new("TextButton")
+CreatorBtn.Size = UDim2.new(1, -40, 0, 36)
+CreatorBtn.Position = UDim2.new(0, 20, 0, 5)
+CreatorBtn.BackgroundColor3 = Color3.fromRGB(18, 18, 22)
+CreatorBtn.Text = "Creator: kaidwlkn"
+CreatorBtn.Font = Enum.Font.GothamMedium
+CreatorBtn.TextSize = 12
+CreatorBtn.TextColor3 = Color3.fromRGB(240, 30, 180)
+CreatorBtn.AutoButtonColor = false
+CreatorBtn.Parent = HomePage
+Instance.new("UICorner", CreatorBtn).CornerRadius = UDim.new(0, 6)
+
+local DiscordBtn = Instance.new("TextButton")
+DiscordBtn.Size = UDim2.new(1, -40, 0, 36)
+DiscordBtn.Position = UDim2.new(0, 20, 0, 48)
+DiscordBtn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+DiscordBtn.Text = "Copy Discord Server Link"
+DiscordBtn.Font = Enum.Font.GothamMedium
+DiscordBtn.TextSize = 12
+DiscordBtn.TextColor3 = Color3.fromRGB(255, 255, 255)
+DiscordBtn.Parent = HomePage
+Instance.new("UICorner", DiscordBtn).CornerRadius = UDim.new(0, 6)
+
+DiscordBtn.MouseButton1Click:Connect(function()
+    if setclipboard or toclipboard then
+        local copy = setclipboard or toclipboard
+        copy(DiscordLink)
+        DiscordBtn.Text = "Copied URL!"
+        task.wait(1.5)
+        DiscordBtn.Text = "Copy Discord Server Link"
+    end
+end)
+
+-- --- 2. MISCELLANEOUS TAB INTERACTIVE ELEMENTS ---
+local function AddToggle(parent, text, positionY, defaultValue, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, -40, 0, 36)
+    Btn.Position = UDim2.new(0, 20, 0, positionY)
+    Btn.BackgroundColor3 = defaultValue and Color3.fromRGB(45, 25, 55) or Color3.fromRGB(24, 24, 28)
+    Btn.Text = text .. ": " .. (defaultValue and "ON" or "OFF")
+    Btn.Font = Enum.Font.GothamMedium
+    Btn.TextSize = 12
+    Btn.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Btn.Parent = parent
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+
+    local state = defaultValue
+    Btn.MouseButton1Click:Connect(function()
+        state = not state
+        Btn.Text = text .. ": " .. (state and "ON" or "OFF")
+        Btn.BackgroundColor3 = state and Color3.fromRGB(45, 25, 55) or Color3.fromRGB(24, 24, 28)
+        callback(state)
+    end)
+end
+
+local function AddCycler(parent, text, positionY, startText, callback)
+    local Btn = Instance.new("TextButton")
+    Btn.Size = UDim2.new(1, -40, 0, 36)
+    Btn.Position = UDim2.new(0, 20, 0, positionY)
+    Btn.BackgroundColor3 = Color3.fromRGB(24, 24, 28)
+    Btn.Text = text .. " ➔ [ " .. startText .. " ]"
+    Btn.Font = Enum.Font.GothamMedium
+    Btn.TextSize = 12
+    Btn.TextColor3 = Color3.fromRGB(240, 30, 180)
+    Btn.Parent = parent
+    Instance.new("UICorner", Btn).CornerRadius = UDim.new(0, 6)
+
+    Btn.MouseButton1Click:Connect(function()
+        local nextLabel = callback()
+        Btn.Text = text .. " ➔ [ " .. nextLabel .. " ]"
+    end)
+end
+
+-- Render Interactive Controls
+AddToggle(MiscPage, "Hitbox Status", 5, Settings.ShowHitboxes, function(v) Settings.ShowHitboxes = v end)
+
+local function AddStaticLabel(parent, text, positionY)
+    local SliderFrame = Instance.new("Frame")
+    SliderFrame.Size = UDim2.new(1, -40, 0, 38)
+    SliderFrame.Position = UDim2.new(0, 20, 0, positionY)
+    SliderFrame.BackgroundColor3 = Color3.fromRGB(20, 20, 25)
+    SliderFrame.Parent = parent
+    Instance.new("UICorner", SliderFrame).CornerRadius = UDim.new(0, 6)
+
+    local Label = Instance.new("TextLabel")
+    Label.Size = UDim2.new(1, 0, 1, 0)
+    Label.BackgroundTransparency = 1
+    Label.Text = text
+    Label.Font = Enum.Font.GothamMedium
+    Label.TextSize = 11
+    Label.TextColor3 = Color3.fromRGB(240, 30, 180)
+    Label.Parent = SliderFrame
+end
+
+-- Label updated to reflect standard hardcoded comp limit
+AddStaticLabel(MiscPage, "Hitbox Size Radius ➔ [ 4 ] Recommended: 4", 48)
+
+AddCycler(MiscPage, "Hitbox Color", 91, ColorList[Settings.CurrentColorIndex].Name, function()
+    Settings.CurrentColorIndex = Settings.CurrentColorIndex + 1
+    if Settings.CurrentColorIndex > #ColorList then Settings.CurrentColorIndex = 1 end
+    return ColorList[Settings.CurrentColorIndex].Name
+end)
+
+AddCycler(MiscPage, "Hitbox Alpha", 134, tostring(TransparencyList[Settings.CurrentTransIndex]), function()
+    Settings.CurrentTransIndex = Settings.CurrentTransIndex + 1
+    if Settings.CurrentTransIndex > #TransparencyList then Settings.CurrentTransIndex = 1 end
+    return tostring(TransparencyList[Settings.CurrentTransIndex])
+end)
+
+AddToggle(MiscPage, "Auto Keep Fist Out", 177, Settings.AutoKeepFist, function(v) Settings.AutoKeepFist = v end)
+AddToggle(MiscPage, "Auto Connect (M1)", 220, Settings.AutoConnect, function(v) Settings.AutoConnect = v end)
+
+
+-- --- GET HIGHEST VALID COMPETITIVE TARGET TARGET ---
+local function GetClosestTarget(root)
+    local closest, maxDist = nil, Settings.Range
+    for _, p in ipairs(Players:GetPlayers()) do
+        if p ~= LocalPlayer and p.Character and p.Character:FindFirstChild("HumanoidRootPart") then
+            local targetRoot = p.Character.HumanoidRootPart
+            local hum = p.Character:FindFirstChildOfClass("Humanoid")
+            if hum and hum.Health > 0 then
+                local dist = (root.Position - targetRoot.Position).Magnitude
+                if dist < maxDist then
+                    closest = targetRoot
+                    maxDist = dist
+                end
+            end
+        end
+    end
+    return closest
+end
+
+-- Track Combat Inputs for M1 Auto Connection
+UserInputService.InputBegan:Connect(function(input, processed)
+    if processed or not Settings.AutoConnect then return end
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+        local char = LocalPlayer.Character
+        local root = char and char:FindFirstChild("HumanoidRootPart")
+        if root then
+            local target = GetClosestTarget(root)
+            if target then
+                root.CFrame = CFrame.new(root.Position, Vector3.new(target.Position.X, root.Position.Y, target.Position.Z))
+            end
+        end
+    end
+end)
+
+-- --- THE RUNTIME COMBAT ENGINE (Heartbeat Utility Only) ---
+RunService.Heartbeat:Connect(function()
+    local Char = LocalPlayer.Character
+    if not Char then return end
+
+    -- Handle Auto Keep Fist Out Engine
+    if Settings.AutoKeepFist then
+        local bp = LocalPlayer:FindFirstChild("Backpack")
+        if bp then
+            local fist = bp:FindFirstChild("Combat") or bp:FindFirstChild("Fist") or bp:FindFirstChild("Fists")
+            if fist and Char:FindFirstChildOfClass("Humanoid") then
+                Char:FindFirstChildOfClass("Humanoid"):EquipTool(fist)
+            end
+        end
+    end
+end)
+
+-- --- DEDICATED HITBOX ENFORCEMENT LOOP (0.1s Interval) ---
+task.spawn(function()
+    while true do
+        task.wait(0.1) 
+        
+        local Char = LocalPlayer.Character
+        local Root = Char and Char:FindFirstChild("HumanoidRootPart")
+        
+        if Root then
+            local activeColorData = ColorList[Settings.CurrentColorIndex]
+            local targetAlpha = TransparencyList[Settings.CurrentTransIndex]
+
+            for _, p in ipairs(Players:GetPlayers()) do
+                if p ~= LocalPlayer and p.Character then
+                    local ERoot = p.Character:FindFirstChild("HumanoidRootPart")
+                    local EHum = p.Character:FindFirstChildOfClass("Humanoid")
+
+                    if ERoot and EHum and EHum.Health > 0 then
+                        local Dist = (Root.Position - ERoot.Position).Magnitude
+                        if Settings.ShowHitboxes and Dist <= Settings.Range then
+                            local TargetScale = Settings.HitboxSize * 1.8
+                            ERoot.Size = Vector3.new(TargetScale, TargetScale, TargetScale)
+                            ERoot.CanCollide = false
+                            
+                            if activeColorData.IsClear then
+                                ERoot.Transparency = 1
+                            else
+                                ERoot.Transparency = targetAlpha
+                                ERoot.Color = activeColorData.Color
+                                ERoot.Material = Enum.Material.Neon
+                            end
+                        else
+                            ERoot.Size = Vector3.new(2, 2, 1)
+                            ERoot.Transparency = 1
+                            ERoot.Material = Enum.Material.Plastic
+                        end
+                    end
+                end
+            end
+        end
+    end
+end)
